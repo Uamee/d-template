@@ -149,7 +149,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setToken(authToken);
       setUser({ ...userData, provider: "local" });
     } catch (error) {
-      throw new Error(error.message);
+      throw new Error();
     } finally {
       setIsLoading(false);
     }

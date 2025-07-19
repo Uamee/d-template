@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import MicrosoftLoginButton from "../../components/examples/atoms/MicrosoftLoginButton";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../@d/auth/AuthContext";
+import MicrosoftLoginButton from "../../@d/components/atoms/MicrosoftLoginButton";
 
 export default function Login() {
   const [email, setEmail] = useState("");
