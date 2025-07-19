@@ -1,14 +1,25 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import About from "../pages/About";
-import Home from "../pages/Home";
+import ProtectedRoute from "../components/organisms/ProtectedRoute";
+import { AuthProvider } from "../contexts/AuthContext";
+import Home from "../pages/example/Home";
+import Login from "../pages/example/Login";
 
 export default function AppRoutes() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            } 
+          />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
