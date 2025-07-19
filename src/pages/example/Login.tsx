@@ -1,52 +1,113 @@
-import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import MicrosoftLoginButton from "../../components/examples/atoms/MicrosoftLoginButton";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  
-  const { login, isLoading } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const from = location.state?.from?.pathname || '/home';
+  const { login, isLoading, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     try {
       await login(email, password);
-      navigate(from, { replace: true });
     } catch (err) {
-      setError('Erro: ' + err);
+      setError("Email ou senha inválidos");
     }
   };
 
   return (
-    <div>
+    <div style={{ maxWidth: "400px", margin: "50px auto", padding: "20px" }}>
       <h1>Login</h1>
+
+      <div style={{ marginBottom: "20px" }}>
+        <MicrosoftLoginButton />
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          margin: "20px 0",
+          color: "#666",
+        }}
+      >
+        <hr style={{ flex: 1 }} />
+        <span style={{ margin: "0 10px" }}>ou</span>
+        <hr style={{ flex: 1 }} />
+      </div>
+
       <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Senha"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? 'Entrando...' : 'Entrar'}
+        <div style={{ marginBottom: "15px" }}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{
+              width: "100%",
+              padding: "12px",
+              border: "1px solid #ddd",
+              borderRadius: "4px",
+              fontSize: "14px",
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: "15px" }}>
+          <input
+            type="password"
+            placeholder="Senha"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{
+              width: "100%",
+              padding: "12px",
+              border: "1px solid #ddd",
+              borderRadius: "4px",
+              fontSize: "14px",
+            }}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          style={{
+            width: "100%",
+            padding: "12px",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: isLoading ? "not-allowed" : "pointer",
+            opacity: isLoading ? 0.7 : 1,
+          }}
+        >
+          {isLoading ? "Entrando..." : "Entrar"}
         </button>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+
+        {error && (
+          <p style={{ color: "red", marginTop: "10px", fontSize: "14px" }}>
+            {error}
+          </p>
+        )}
       </form>
     </div>
   );

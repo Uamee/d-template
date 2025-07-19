@@ -1,5 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import ProtectedRoute from "../components/organisms/ProtectedRoute";
+import ProtectedRoute from "../components/examples/organisms/ProtectedRoute";
 import { AuthProvider } from "../contexts/AuthContext";
 import Home from "../pages/example/Home";
 import Login from "../pages/example/Login";
@@ -11,7 +11,7 @@ export default function AppRoutes() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route 
-            path="/dashboard" 
+            path="/" 
             element={
               <ProtectedRoute>
                 <Home />
