@@ -1,81 +1,128 @@
-import { useRef, type ReactNode } from "react";
-import type {
-    SidebarPosition,
-    SidebarRef,
-    SidebarVariant,
+import { Box, Container, useMediaQuery, useTheme } from "@mui/material";
+import { useEffect, useRef, type ReactNode } from "react";
+import { Outlet } from "react-router-dom";
+import Sidebar, {
+  type SidebarPosition,
+  type SidebarRef,
 } from "../organisms/Sidebar";
-import Sidebar from "../organisms/Sidebar";
+import ScrollToTop from "./components/ScrollToTop";
+import Footer from "./components/Footer";
+import Header from "./components/Header";
+import { useLayout } from "../../hooks/LayoutContext";
 
 interface LayoutWithSidebarProps {
-  children: ReactNode;
+  children?: ReactNode;
   sidebarContent?: ReactNode;
-  sidebarOpen?: boolean;
   sidebarPosition?: SidebarPosition;
-  sidebarVariant?: SidebarVariant;
+  sidebarVariant?: "permanent" | "temporary";
   sidebarWidth?: number;
-  onSidebarClose?: () => void;
   className?: string;
+  showSidebar?: boolean;
 }
 
 export default function LayoutWithSidebar({
   children,
   sidebarContent,
-  sidebarOpen = true,
   sidebarPosition = "left",
   sidebarVariant = "permanent",
-  sidebarWidth = 280,
-  onSidebarClose,
+  sidebarWidth = 353,
   className = "",
+  showSidebar = true,
 }: LayoutWithSidebarProps) {
   const sidebarRef = useRef<SidebarRef>(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const mainContentStyles = {
-    marginLeft:
-      sidebarVariant === "permanent" &&
-      sidebarPosition === "left" &&
-      sidebarOpen
-        ? `${sidebarWidth}px`
-        : "0",
-    marginRight:
-      sidebarVariant === "permanent" &&
-      sidebarPosition === "right" &&
-      sidebarOpen
-        ? `${sidebarWidth}px`
-        : "0",
-    transition: "margin 0.3s ease-in-out",
-    minHeight: "100vh",
-  };
+  const {
+    isSidebarOpen,
+    toggleSidebar,
+    openSidebar,
+    closeSidebar,
+    isFullWidth,
+  } = useLayout();
+
+  const effectiveVariant = isMobile ? "temporary" : sidebarVariant;
+
+  useEffect(() => {
+    if (isMobile) {
+      closeSidebar();
+    } else if (sidebarVariant === "permanent") {
+      openSidebar();
+    }
+  }, [isMobile, closeSidebar, openSidebar, sidebarVariant]);
+
+  const shouldShiftContent =
+    showSidebar &&
+    isSidebarOpen &&
+    !isMobile &&
+    effectiveVariant !== "temporary";
+  const mainContentMargin = shouldShiftContent ? `${sidebarWidth}px` : "0px";
 
   return (
-    <div className={`layout-with-sidebar ${className}`}>
-      {sidebarContent && (
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "background.default",
+        overflowX: "hidden",
+      }}
+      className={`layout-with-sidebar ${className}`}
+    >
+      <ScrollToTop />
+
+      {showSidebar && sidebarContent && (
         <Sidebar
           ref={sidebarRef}
-          open={sidebarOpen}
+          open={isSidebarOpen}
+          toggle={toggleSidebar}
+          openSidebar={openSidebar}
+          closeSidebar={closeSidebar}
           position={sidebarPosition}
-          variant={sidebarVariant}
+          variant={effectiveVariant}
           width={sidebarWidth}
-          onClose={onSidebarClose}
         >
           {sidebarContent}
         </Sidebar>
       )}
 
-      <main className="main-content" style={mainContentStyles}>
-        {children}
-      </main>
-    </div>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100vh",
+          transition: theme.transitions.create(["margin", "width"], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+          ...(sidebarPosition === "left"
+            ? { marginLeft: mainContentMargin }
+            : { marginRight: mainContentMargin }),
+          paddingBottom: isMobile ? "56px" : 0,
+        }}
+      >
+        {isMobile && <Header />}
+
+        <Container
+          maxWidth={isFullWidth ? false : "lg"}
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            py: { xs: 2, md: 4, lg: 8 },
+            px: {
+              xs: 2,
+              md: isFullWidth ? 0 : 4,
+              lg: isFullWidth ? 0 : 8,
+            },
+          }}
+        >
+          {children || <Outlet />}
+        </Container>
+      </Box>
+
+      {isMobile && <Footer />}
+    </Box>
   );
 }
-
-// Hook para controlar a sidebar do template
-export const useLayoutSidebar = () => {
-  const sidebarRef = useRef<SidebarRef>(null);
-
-  return {
-    sidebarRef,
-    toggleSidebar: (value?: boolean) => sidebarRef.current?.toggle(value),
-    openSidebar: () => sidebarRef.current?.open(),
-    closeSidebar: () => sidebarRef.current?.close(),
-  };
-};

@@ -1,25 +1,27 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { AuthProvider } from "../@d/auth/AuthContext";
+import { Navigate, Route, Routes } from "react-router-dom";
+import AdminDashboardPage from "../modules/example/admin/AdminDashboardPage";
+import LoginPage from "../modules/example/auth/LoginPage";
+import HomePage from "../modules/example/home/HomePage";
+import MainLayout from "../@d/components/layouts/MainLayout";
 import ProtectedRoute from "../@d/components/organisms/ProtectedRoute";
-import Home from "../pages/example/Home";
-import Login from "../pages/example/Login";
 
 export default function AppRoutes() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route 
-            path="/" 
-            element={
-              <ProtectedRoute>
-                <Home />
-              </ProtectedRoute>
-            } 
-          />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+
+      <Route
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/" element={<HomePage />} />
+        <Route path="/admin" element={<AdminDashboardPage />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

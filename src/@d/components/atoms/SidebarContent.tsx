@@ -19,7 +19,7 @@ export default function SidebarContent({
       style={{
         height: "100%",
         overflow: enableScroll ? "auto" : "hidden",
-        padding: "16px",
+        padding: "8px",
       }}
     >
       {children}

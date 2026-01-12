@@ -1,5 +1,4 @@
-import { PublicClientApplication, type AccountInfo } from "@azure/msal-browser";
-import axios from "axios";
+import Cookies from "js-cookie";
 import {
   createContext,
   useContext,
@@ -7,29 +6,41 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { loginRequest, msalConfig } from "../config/msalConfig";
+import api from "../../services/api";
+import {
+  USE_AUTH_MOCK,
+  mockLoginRequest,
+  mockSessionRecovery,
+} from "./auth.mock";
 
-interface User {
+export interface SignInCredentials {
+  email: string;
+  password: string;
+}
+
+export interface User {
   id: string;
   email: string;
   name: string;
+  avatarImg: string;
   provider?: "local" | "microsoft";
+  microsoftId: string;
+  createdAt: string;
+  updatedAt: string;
+  isAdmin: boolean;
 }
 
 interface AuthContextData {
   user: User | null;
-  token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  loginWithMicrosoft: () => Promise<void>;
-  logout: () => void;
   isAuthenticated: boolean;
-  msalInstance: PublicClientApplication;
+  loginWithMicrosoft: () => void;
+  loginWithEmail: (credentials: SignInCredentials) => Promise<void>;
+  logout: (singleSignOut?: boolean) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
-
-const msalInstance = new PublicClientApplication(msalConfig);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -37,170 +48,108 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeMsal();
-  }, []);
+    const token = Cookies.get("app-token");
 
-  const initializeMsal = async () => {
-    try {
-      await msalInstance.initialize();
-
-      const accounts = msalInstance.getAllAccounts();
-      if (accounts.length > 0) {
-        msalInstance.setActiveAccount(accounts[0]);
-        await handleMicrosoftAccount(accounts[0]);
-      } else {
-        checkLocalAuth();
+    if (token) {
+      if (USE_AUTH_MOCK) {
+        setUser(mockSessionRecovery());
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error("Erro ao inicializar MSAL:", error);
-      checkLocalAuth();
-    }
-  };
 
-  const checkLocalAuth = () => {
-    const storedToken = localStorage.getItem("@app:token");
-    const storedUser = localStorage.getItem("@app:user");
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-      axios.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
-    }
-
-    setIsLoading(false);
-  };
-
-  const handleMicrosoftAccount = async (account: AccountInfo) => {
-    try {
-      const response = await msalInstance.acquireTokenSilent({
-        ...loginRequest,
-        account: account,
-      });
-
-      const userResponse = await axios.get(
-        "https://graph.microsoft.com/v1.0/me",
-        {
-          headers: {
-            Authorization: `Bearer ${response.accessToken}`,
-          },
-        }
-      );
-
-      const microsoftUser = userResponse.data;
-
-      const userData: User = {
-        id: microsoftUser.id,
-        email: microsoftUser.mail || microsoftUser.userPrincipalName,
-        name: microsoftUser.displayName,
-        provider: "microsoft",
-      };
-
-      // TODO: criar/validar o usuário no backend
-      // const backendResponse = await axios.post('/api/auth/microsoft', {
-      //   microsoftToken: response.accessToken,
-      //   userData,
-      // });
-
-      // TODO: remover esse backendToken simulado
-      const backendToken = `backend_token_${response.accessToken.substring(
-        0,
-        20
-      )}`;
-
-      localStorage.setItem("@app:token", backendToken);
-      localStorage.setItem("@app:user", JSON.stringify(userData));
-
-      setToken(backendToken);
-      setUser(userData);
-      axios.defaults.headers.common["Authorization"] = `Bearer ${backendToken}`;
-    } catch (error) {
-      console.error("Erro ao processar conta Microsoft:", error);
-    } finally {
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      api
+        .get("/users/me")
+        .then((response) => {
+          setUser(response.data);
+        })
+        .catch(() => {
+          logout();
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
       setIsLoading(false);
     }
+  }, []);
+
+  const loginWithMicrosoft = () => {
+    if (USE_AUTH_MOCK) {
+      alert("Mock: Login Microsoft não implementado no mock.");
+      return;
+    }
+    window.location.href = `${import.meta.env.VITE_API_URL}/auth/microsoft`;
   };
 
-  const login = async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
+  const loginWithEmail = async ({ email, password }: SignInCredentials) => {
+    if (USE_AUTH_MOCK) {
+      const userMock = await mockLoginRequest(email);
+      setUser(userMock);
+      return;
+    }
 
-      const response = await axios.post("/api/auth/login", {
+    try {
+      const response = await api.post("/auth/login", {
         email,
         password,
       });
 
-      const { token: authToken, user: userData } = response.data;
+      const { token, user } = response.data;
+      Cookies.set("app-token", token, { expires: 7, path: "/" });
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-      localStorage.setItem("@app:token", authToken);
-      localStorage.setItem(
-        "@app:user",
-        JSON.stringify({
-          ...userData,
-          provider: "local",
-        })
-      );
-
-      axios.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
-
-      setToken(authToken);
-      setUser({ ...userData, provider: "local" });
+      setUser(user);
     } catch (error) {
-      throw new Error();
-    } finally {
-      setIsLoading(false);
+      // Logger.error("Erro ao fazer login com email", error);
+      throw error;
     }
   };
 
-  const loginWithMicrosoft = async () => {
-    try {
-      setIsLoading(true);
-
-      const response = await msalInstance.loginPopup(loginRequest);
-
-      if (response.account) {
-        msalInstance.setActiveAccount(response.account);
-        await handleMicrosoftAccount(response.account);
-      }
-    } catch (error) {
-      console.error("Erro no login Microsoft:", error);
-      throw new Error("Erro ao fazer login com Microsoft");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    localStorage.removeItem("@app:token");
-    localStorage.removeItem("@app:user");
-
-    delete axios.defaults.headers.common["Authorization"];
-
-    const accounts = msalInstance.getAllAccounts();
-    if (accounts.length > 0) {
-      await msalInstance.logoutPopup({
-        account: accounts[0],
-      });
-    }
-
-    setToken(null);
+  const logout = (singleSignOut = false) => {
     setUser(null);
+    Cookies.remove("app-token", { path: "/" });
+    delete api.defaults.headers.common["Authorization"];
+
+    if (USE_AUTH_MOCK) {
+      window.location.href = "/login";
+      return;
+    }
+
+    if (singleSignOut) {
+      window.location.href = `${
+        import.meta.env.VITE_API_URL
+      }/auth/microsoft/logout`;
+    } else {
+      window.location.href = "/login";
+    }
+  };
+
+  const refreshUser = async () => {
+    if (USE_AUTH_MOCK) return;
+
+    try {
+      const response = await api.get("/users/me");
+      setUser(response.data);
+    } catch (error) {
+      // Logger.error("Fail to refresh user", error);
+      logout();
+    }
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        token,
         isLoading,
-        login,
+        isAuthenticated: !!user,
         loginWithMicrosoft,
+        loginWithEmail,
         logout,
-        isAuthenticated: !!token,
-        msalInstance,
+        refreshUser,
       }}
     >
       {children}
@@ -210,10 +159,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-
   if (!context) {
     throw new Error("useAuth deve ser usado dentro de um AuthProvider");
   }
-
   return context;
 };

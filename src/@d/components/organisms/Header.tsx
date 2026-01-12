@@ -34,7 +34,7 @@ export default function Header() {
             </span>
             <Link to="/dashboard">Dashboard</Link>
             <button
-              onClick={logout}
+              onClick={() => logout}
               style={{
                 padding: "5px 10px",
                 backgroundColor: "#dc3545",

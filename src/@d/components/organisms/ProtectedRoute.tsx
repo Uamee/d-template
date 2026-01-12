@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import LoadingFallback from "../../../shared/LoadingFallback/LoadingFallback";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -11,7 +12,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
 
   if (isLoading) {
-    return <div>Carregando...</div>; //TODO: por uma tela melhor
+    return <LoadingFallback />;
   }
 
   if (!isAuthenticated) {
